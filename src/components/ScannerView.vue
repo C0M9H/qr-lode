@@ -178,7 +178,7 @@ import { useHistory } from '../composables/useHistory'
 
 const {
   videoRef, canvasRef, isScanning, isLoading, error,
-  flashOn, facingMode,
+  flashOn, facingMode, onCodeDetected,
   startScanner: initScanner, stopScanner, toggleCamera, toggleFlash,
   scanImage
 } = useCodeScanner()
@@ -190,7 +190,6 @@ const resultFlash = ref(false)
 const copied = ref(false)
 const scanCount = ref(0)
 const fileInput = ref(null)
-let scanInterval = null
 
 const scanHints = [
   'Îndreaptă camera spre codul QR',
@@ -204,7 +203,8 @@ const scanHint = computed(() => scanHints[hintIndex.value])
 const startScanner = async () => {
   await initScanner()
   if (isScanning.value) {
-    startScanLoop()
+    // Set up callback for detected codes
+    onCodeDetected.value = onCodeDetected_handler
     // Rotate hints
     setInterval(() => {
       hintIndex.value = (hintIndex.value + 1) % scanHints.length
@@ -212,57 +212,7 @@ const startScanner = async () => {
   }
 }
 
-const startScanLoop = () => {
-  if (scanInterval) clearInterval(scanInterval)
-  // Use the scanner's built-in scanning loop
-  const loop = async () => {
-    if (!isScanning.value) return
-    try {
-      const { videoRef: vr, canvasRef: cr } = { videoRef, canvasRef }
-      const video = vr.value
-      const canvas = cr.value
-      if (!video || !canvas || video.readyState < 2) {
-        scanInterval = setTimeout(loop, 150)
-        return
-      }
-
-      const ctx = canvas.getContext('2d', { willReadFrequently: true })
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      ctx.drawImage(video, 0, 0)
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      // Use the new code scanner that supports multiple barcode types
-      const { BrowserMultiFormatReader } = await import('@zxing/library')
-      const reader = new BrowserMultiFormatReader()
-      
-      try {
-        const tmpCanvas = document.createElement('canvas')
-        tmpCanvas.width = imageData.width
-        tmpCanvas.height = imageData.height
-        const tmpCtx = tmpCanvas.getContext('2d')
-        tmpCtx.putImageData(imageData, 0, 0)
-        
-        const result = reader.decodeFromCanvas(tmpCanvas)
-        if (result) {
-          const codeData = result.getText()
-          const format = result.getBarcodeFormat().toString()
-          onCodeDetected(codeData, format)
-          scanInterval = setTimeout(loop, 2000) // Pause after detection
-          return
-        }
-      } catch (decodeErr) {
-        // No code found, this is normal during scanning
-      }
-    } catch (e) {
-      // continue
-    }
-    scanInterval = setTimeout(loop, 100)
-  }
-  scanInterval = setTimeout(loop, 200)
-}
-
-const onCodeDetected = (data, format = 'QR_CODE') => {
+const onCodeDetected_handler = (data, format = 'QR_CODE') => {
   // Haptic feedback
   if (navigator.vibrate) navigator.vibrate([50, 30, 50])
 

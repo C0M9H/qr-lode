@@ -8,15 +8,18 @@ export function useCodeScanner() {
   const error = ref(null)
   const flashOn = ref(false)
   const facingMode = ref('environment') // 'environment' = back, 'user' = front
+  const onCodeDetected = ref(null) // Callback for detected codes
   let stream = null
   let animationId = null
   let zxingModule = null
+  let reader = null
 
   // Lazy load zxing
   const loadZxing = async () => {
     if (!zxingModule) {
       const { BrowserMultiFormatReader, Result } = await import('@zxing/library')
       zxingModule = { BrowserMultiFormatReader, Result }
+      reader = new BrowserMultiFormatReader()
     }
     return zxingModule
   }
@@ -47,7 +50,8 @@ export function useCodeScanner() {
         await videoRef.value.play()
         isScanning.value = true
         isLoading.value = false
-        requestAnimationFrame(scanFrame)
+        // Start scanning frames
+        animationId = requestAnimationFrame(scanFrame)
       }
     } catch (err) {
       isLoading.value = false
@@ -64,13 +68,10 @@ export function useCodeScanner() {
   }
 
   const decodeImage = (imageData) => {
-    if (!zxingModule) return null
+    if (!reader) return null
 
     try {
-      const { BrowserMultiFormatReader } = zxingModule
-      const reader = new BrowserMultiFormatReader()
-      
-      // Create a temporary canvas to get a CanvasImageSource
+      // Create a temporary canvas to decode from
       const tmpCanvas = document.createElement('canvas')
       tmpCanvas.width = imageData.width
       tmpCanvas.height = imageData.height
@@ -110,13 +111,19 @@ export function useCodeScanner() {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const code = decodeImage(imageData)
 
-      if (code) {
-        return code // Found!
+      if (code && onCodeDetected.value) {
+        onCodeDetected.value(code.data, code.format)
+        // Pause briefly after detection
+        setTimeout(() => {
+          if (isScanning.value) {
+            animationId = requestAnimationFrame(scanFrame)
+          }
+        }, 1500)
+        return
       }
     }
 
     animationId = requestAnimationFrame(scanFrame)
-    return null
   }
 
   const scanFrameAsync = () => {
@@ -240,6 +247,7 @@ export function useCodeScanner() {
     error,
     flashOn,
     facingMode,
+    onCodeDetected,
     startScanner,
     stopScanner,
     toggleCamera,
