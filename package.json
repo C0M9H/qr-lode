@@ -10,7 +10,7 @@
   "dependencies": {
     "vue": "^3.4.0",
     "vue-router": "^4.3.0",
-    "jsqr": "^1.4.0"
+    "@zxing/library": "^0.21.3"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",

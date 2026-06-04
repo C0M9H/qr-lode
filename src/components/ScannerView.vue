@@ -121,7 +121,7 @@
       <div v-if="lastResult" class="result-panel">
         <div class="result-header">
           <div class="result-type-badge" :class="lastResult.type">
-            <span>{{ typeLabel(lastResult.type) }}</span>
+            <span>{{ typeLabel(lastResult.type, lastResult.format) }}</span>
           </div>
           <button @click="lastResult = null" class="result-close">✕</button>
         </div>
@@ -173,7 +173,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useQRScanner } from '../composables/useQRScanner'
+import { useCodeScanner } from '../composables/useCodeScanner'
 import { useHistory } from '../composables/useHistory'
 
 const {
@@ -181,7 +181,7 @@ const {
   flashOn, facingMode,
   startScanner: initScanner, stopScanner, toggleCamera, toggleFlash,
   scanImage
-} = useQRScanner()
+} = useCodeScanner()
 
 const { addEntry } = useHistory()
 
@@ -214,7 +214,7 @@ const startScanner = async () => {
 
 const startScanLoop = () => {
   if (scanInterval) clearInterval(scanInterval)
-  // Use requestAnimationFrame-based loop via the composable
+  // Use the scanner's built-in scanning loop
   const loop = async () => {
     if (!isScanning.value) return
     try {
@@ -232,15 +232,27 @@ const startScanLoop = () => {
       ctx.drawImage(video, 0, 0)
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const jsQR = (await import('jsqr')).default
-      const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'dontInvert'
-      })
-
-      if (code && code.data) {
-        onCodeDetected(code.data)
-        scanInterval = setTimeout(loop, 2000) // Pause after detection
-        return
+      // Use the new code scanner that supports multiple barcode types
+      const { BrowserMultiFormatReader } = await import('@zxing/library')
+      const reader = new BrowserMultiFormatReader()
+      
+      try {
+        const tmpCanvas = document.createElement('canvas')
+        tmpCanvas.width = imageData.width
+        tmpCanvas.height = imageData.height
+        const tmpCtx = tmpCanvas.getContext('2d')
+        tmpCtx.putImageData(imageData, 0, 0)
+        
+        const result = reader.decodeFromCanvas(tmpCanvas)
+        if (result) {
+          const codeData = result.getText()
+          const format = result.getBarcodeFormat().toString()
+          onCodeDetected(codeData, format)
+          scanInterval = setTimeout(loop, 2000) // Pause after detection
+          return
+        }
+      } catch (decodeErr) {
+        // No code found, this is normal during scanning
       }
     } catch (e) {
       // continue
@@ -250,7 +262,7 @@ const startScanLoop = () => {
   scanInterval = setTimeout(loop, 200)
 }
 
-const onCodeDetected = (data) => {
+const onCodeDetected = (data, format = 'QR_CODE') => {
   // Haptic feedback
   if (navigator.vibrate) navigator.vibrate([50, 30, 50])
 
@@ -258,7 +270,7 @@ const onCodeDetected = (data) => {
   resultFlash.value = true
   setTimeout(() => { resultFlash.value = false }, 400)
 
-  const entry = addEntry(data)
+  const entry = addEntry(data, format)
   if (entry) {
     lastResult.value = entry
     scanCount.value++
@@ -307,9 +319,9 @@ const onFileSelected = async (e) => {
   try {
     const result = await scanImage(file)
     if (result) {
-      onCodeDetected(result)
+      onCodeDetected(result.data, result.format)
     } else {
-      alert('Nu s-a găsit niciun cod QR în imagine.')
+      alert('Nu s-a găsit niciun cod în imagine.')
     }
   } catch (err) {
     alert('Eroare la procesarea imaginii.')
@@ -317,7 +329,29 @@ const onFileSelected = async (e) => {
   e.target.value = ''
 }
 
-const typeLabel = (type) => {
+const typeLabel = (type, format = 'QR_CODE') => {
+  // Barcode format labels
+  const barcodeLabels = {
+    'QR_CODE': '🔲 QR Code',
+    'CODE_128': '📊 Code 128',
+    'CODE_39': '📊 Code 39',
+    'CODE_93': '📊 Code 93',
+    'EAN_8': '📦 EAN-8',
+    'EAN_13': '📦 EAN-13',
+    'UPC_A': '📦 UPC-A',
+    'UPC_E': '📦 UPC-E',
+    'DATA_MATRIX': '🔷 Data Matrix',
+    'AZTEC': '🔶 Aztec',
+    'PDF_417': '📋 PDF417',
+    'ITF': '📊 ITF',
+  }
+
+  // If we have a specific barcode format, use it
+  if (format && format !== 'QR_CODE' && barcodeLabels[format]) {
+    return barcodeLabels[format]
+  }
+
+  // Otherwise detect by content type
   const labels = {
     url: '🔗 URL',
     email: '📧 Email',
@@ -329,7 +363,7 @@ const typeLabel = (type) => {
     location: '📍 Locație',
     text: '📝 Text',
   }
-  return labels[type] || '📝 Text'
+  return labels[type] || (barcodeLabels[format] || '📝 Text')
 }
 
 onMounted(() => {

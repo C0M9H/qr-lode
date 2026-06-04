@@ -25,11 +25,12 @@ const saveHistory = () => {
 loadHistory()
 
 export function useHistory() {
-  const addEntry = (data) => {
+  const addEntry = (data, format = 'QR_CODE') => {
     const entry = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
       data,
       type: detectType(data),
+      format: format, // Store the barcode format (QR_CODE, CODE_128, EAN_13, etc.)
       timestamp: new Date().toISOString(),
       favorite: false
     }

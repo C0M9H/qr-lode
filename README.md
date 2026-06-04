@@ -1,10 +1,11 @@
-# QR Scanner PWA — Vue 3
+# QR & Barcode Scanner PWA — Vue 3
 
-Aplicație PWA pentru scanare coduri QR, construită cu Vue 3, Vite și jsQR.
+Aplicație PWA pentru scanare coduri QR și coduri de bare (1D/2D), construită cu Vue 3, Vite și ZXing.
 
 ## Funcționalități
 
 - 📷 **Scanare live** prin cameră (back/front)
+- 📊 **Suport coduri de bare** — QR, Code128, EAN, UPC, DataMatrix, și mai multe
 - 📁 **Import imagine** din galerie/fișiere
 - ⚡ **Flash/Lanternă** (dispozitive compatibile)
 - 📋 **Copiere & Share** rezultate
@@ -22,7 +23,7 @@ Aplicație PWA pentru scanare coduri QR, construită cu Vue 3, Vite și jsQR.
 | Vue 3 | 3.4+ | Framework UI (Composition API) |
 | Vite | 5.x | Build tool & dev server |
 | vite-plugin-pwa | 0.20+ | Service Worker + Manifest |
-| jsQR | 1.4+ | Decodare QR din ImageData |
+| @zxing/library | 0.21+ | Decodare QR & Coduri de bare |
 | Vue Router | 4.x | Navigare SPA |
 
 ## Instalare & Rulare

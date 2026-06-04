@@ -72,13 +72,13 @@
           @click="expandEntry(entry)"
         >
           <div class="item-icon" :class="entry.type">
-            <span>{{ typeEmoji(entry.type) }}</span>
+            <span>{{ typeEmoji(entry.type, entry.format) }}</span>
           </div>
 
           <div class="item-body">
             <p class="item-data">{{ truncate(entry.data, 60) }}</p>
             <div class="item-meta">
-              <span class="item-type">{{ typeName(entry.type) }}</span>
+              <span class="item-type">{{ typeName(entry.type, entry.format) }}</span>
               <span class="item-time">{{ formatTime(entry.timestamp) }}</span>
             </div>
           </div>
@@ -107,7 +107,7 @@
         <div class="modal-panel">
           <div class="modal-header">
             <div class="modal-type-badge" :class="selected.type">
-              {{ typeEmoji(selected.type) }} {{ typeName(selected.type) }}
+              {{ typeEmoji(selected.type, selected.format) }} {{ typeName(selected.type, selected.format) }}
             </div>
             <button @click="selected = null" class="modal-close">✕</button>
           </div>
@@ -223,7 +223,28 @@ const doClear = () => {
 
 const truncate = (str, n) => str.length > n ? str.slice(0, n) + '…' : str
 
-const typeEmoji = (type) => {
+const typeEmoji = (type, format = 'QR_CODE') => {
+  // Barcode format emojis
+  const barcodeMap = {
+    'QR_CODE': '🔲',
+    'CODE_128': '📊',
+    'CODE_39': '📊',
+    'CODE_93': '📊',
+    'EAN_8': '📦',
+    'EAN_13': '📦',
+    'UPC_A': '📦',
+    'UPC_E': '📦',
+    'DATA_MATRIX': '🔷',
+    'AZTEC': '🔶',
+    'PDF_417': '📋',
+    'ITF': '📊',
+  }
+  
+  // If we have a barcode format, use it
+  if (format && format !== 'QR_CODE' && barcodeMap[format]) {
+    return barcodeMap[format]
+  }
+
   const map = {
     url: '🔗', email: '📧', phone: '📞', sms: '💬',
     wifi: '📶', contact: '👤', event: '📅', location: '📍', text: '📝'
@@ -231,7 +252,28 @@ const typeEmoji = (type) => {
   return map[type] || '📝'
 }
 
-const typeName = (type) => {
+const typeName = (type, format = 'QR_CODE') => {
+  // Barcode format names
+  const barcodeMap = {
+    'QR_CODE': 'QR Code',
+    'CODE_128': 'Code 128',
+    'CODE_39': 'Code 39',
+    'CODE_93': 'Code 93',
+    'EAN_8': 'EAN-8',
+    'EAN_13': 'EAN-13',
+    'UPC_A': 'UPC-A',
+    'UPC_E': 'UPC-E',
+    'DATA_MATRIX': 'Data Matrix',
+    'AZTEC': 'Aztec',
+    'PDF_417': 'PDF417',
+    'ITF': 'ITF',
+  }
+
+  // If we have a barcode format, use it
+  if (format && format !== 'QR_CODE' && barcodeMap[format]) {
+    return barcodeMap[format]
+  }
+
   const map = {
     url: 'URL', email: 'Email', phone: 'Telefon', sms: 'SMS',
     wifi: 'WiFi', contact: 'Contact', event: 'Eveniment', location: 'Locație', text: 'Text'
