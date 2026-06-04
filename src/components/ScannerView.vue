@@ -168,6 +168,47 @@
       <span class="counter-label">Scanat</span>
       <span class="counter-value">{{ scanCount }}</span>
     </div>
+
+    <!-- Code naming modal -->
+    <transition name="modal-fade">
+      <div v-if="showNamingModal" class="modal-overlay" @click="closeNamingModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Dă un nume codului</h3>
+            <button @click="closeNamingModal" class="modal-close">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="code-info">
+              <div class="code-label">Cod:</div>
+              <div class="code-value">{{ pendingCode?.data }}</div>
+              <div class="code-format">{{ pendingCode?.format }}</div>
+            </div>
+
+            <input
+              v-model="codeName"
+              type="text"
+              class="code-name-input"
+              placeholder="Introdu un nume pentru acest cod..."
+              @keyup.enter="saveCode"
+            />
+          </div>
+
+          <div class="modal-footer">
+            <button @click="closeNamingModal" class="btn-cancel">Anulează</button>
+            <button @click="saveCode" class="btn-save">Salvează</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Save notification -->
+    <transition name="slide-down">
+      <div v-if="showSaveNotification" class="save-notification">
+        <div class="notification-icon">✓</div>
+        <div class="notification-text">Cod salvat cu succes!</div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -191,6 +232,12 @@ const copied = ref(false)
 const scanCount = ref(0)
 const fileInput = ref(null)
 
+// Modal state
+const showNamingModal = ref(false)
+const showSaveNotification = ref(false)
+const pendingCode = ref(null)
+const codeName = ref('')
+
 const scanHints = [
   'Îndreaptă camera spre codul QR',
   'Ține dispozitivul stabil',
@@ -208,10 +255,46 @@ const handleCodeDetected = (data, format = 'QR_CODE') => {
   resultFlash.value = true
   setTimeout(() => { resultFlash.value = false }, 400)
 
-  const entry = addEntry(data, format)
+  // Store pending code and show naming modal
+  pendingCode.value = { data, format }
+  codeName.value = ''
+  showNamingModal.value = true
+}
+
+const closeNamingModal = () => {
+  showNamingModal.value = false
+  pendingCode.value = null
+  codeName.value = ''
+}
+
+const saveCode = () => {
+  if (!pendingCode.value) return
+  
+  // Determine the type of code
+  const data = pendingCode.value.data
+  let type = 'text'
+  
+  if (/^https?:\/\/.+/.test(data)) type = 'url'
+  else if (/^mailto:.+/.test(data)) type = 'email'
+  else if (/^\+?[\d\s\-()]{10,}$/.test(data)) type = 'phone'
+  else if (/^WIFI:/.test(data)) type = 'wifi'
+  else if (/^BEGIN:VCARD/.test(data)) type = 'contact'
+  else if (/^BEGIN:VEVENT/.test(data)) type = 'event'
+  else if (/^geo:/.test(data)) type = 'location'
+  
+  // Add to history with the given name
+  const entry = addEntry(data, pendingCode.value.format, codeName.value || 'Unnamed Code')
+  
   if (entry) {
     lastResult.value = entry
     scanCount.value++
+    
+    // Show notification
+    closeNamingModal()
+    showSaveNotification.value = true
+    setTimeout(() => {
+      showSaveNotification.value = false
+    }, 2000)
   }
 }
 
@@ -704,6 +787,214 @@ onUnmounted(() => {
   display: none;
 }
 
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--bg2);
+  border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.modal-close:hover {
+  background: var(--surface);
+}
+
+.modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.code-info {
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  border: 1px solid var(--border);
+}
+
+.code-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.code-value {
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-all;
+  font-family: monospace;
+  margin-bottom: 6px;
+  max-height: 60px;
+  overflow-y: auto;
+}
+
+.code-format {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.code-name-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text);
+  font-family: var(--sans);
+  transition: border-color 0.15s;
+}
+
+.code-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.code-name-input::placeholder {
+  color: var(--text2);
+}
+
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+}
+
+.btn-cancel,
+.btn-save {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: all 0.15s;
+}
+
+.btn-cancel {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-cancel:hover {
+  background: var(--bg);
+}
+
+.btn-save {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn-save:hover {
+  opacity: 0.9;
+}
+
+/* Save notification */
+.save-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--accent);
+  color: var(--bg);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 101;
+  box-shadow: 0 10px 30px rgba(0, 229, 160, 0.2);
+}
+
+.notification-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* Transitions */
+.modal-fade-enter-active {
+  animation: fade-in 0.2s ease;
+}
+
+.modal-fade-leave-active {
+  animation: fade-in 0.15s ease reverse;
+}
+
+.slide-down-enter-active {
+  animation: slide-down 0.3s ease;
+}
+
+.slide-down-leave-active {
+  animation: slide-down 0.2s ease reverse;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Slide up transition */
 .slide-up-enter-active {
   animation: slide-up 0.3s ease;
@@ -711,5 +1002,25 @@ onUnmounted(() => {
 
 .slide-up-leave-active {
   animation: slide-up 0.25s ease reverse;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>

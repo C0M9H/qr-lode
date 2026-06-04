@@ -76,6 +76,7 @@
           </div>
 
           <div class="item-body">
+            <p v-if="entry.name" class="item-name">{{ entry.name }}</p>
             <p class="item-data">{{ truncate(entry.data, 60) }}</p>
             <div class="item-meta">
               <span class="item-type">{{ typeName(entry.type, entry.format) }}</span>
@@ -511,6 +512,16 @@ const formatFullTime = (iso) => {
 .item-body {
   flex: 1;
   min-width: 0;
+}
+
+.item-name {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .item-data {

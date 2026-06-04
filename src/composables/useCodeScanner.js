@@ -216,7 +216,6 @@ export function useCodeScanner() {
 
       isScanning.value = true
       isLoading.value = false
-      lastDetectedCode = null
       console.log('✓ Scanner started')
       
       scan()
