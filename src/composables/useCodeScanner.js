@@ -12,14 +12,19 @@ export function useCodeScanner() {
   let stream = null
   let animationId = null
   let zxingModule = null
-  let reader = null
+  let codeReader = null
 
   // Lazy load zxing
   const loadZxing = async () => {
     if (!zxingModule) {
-      const { BrowserMultiFormatReader, Result } = await import('@zxing/library')
-      zxingModule = { BrowserMultiFormatReader, Result }
-      reader = new BrowserMultiFormatReader()
+      try {
+        const { BrowserMultiFormatReader } = await import('@zxing/library')
+        zxingModule = { BrowserMultiFormatReader }
+        codeReader = new BrowserMultiFormatReader()
+      } catch (err) {
+        console.error('Failed to load zxing:', err)
+        throw new Error('Nu s-a putut încărca biblioteca de scanare')
+      }
     }
     return zxingModule
   }
@@ -47,11 +52,12 @@ export function useCodeScanner() {
 
       if (videoRef.value) {
         videoRef.value.srcObject = stream
-        await videoRef.value.play()
+        await new Promise(resolve => {
+          videoRef.value.onplay = resolve
+        })
         isScanning.value = true
         isLoading.value = false
-        // Start scanning frames
-        animationId = requestAnimationFrame(scanFrame)
+        scanFrame()
       }
     } catch (err) {
       isLoading.value = false
@@ -68,10 +74,9 @@ export function useCodeScanner() {
   }
 
   const decodeImage = (imageData) => {
-    if (!reader) return null
+    if (!codeReader) return null
 
     try {
-      // Create a temporary canvas to decode from
       const tmpCanvas = document.createElement('canvas')
       tmpCanvas.width = imageData.width
       tmpCanvas.height = imageData.height
@@ -79,7 +84,7 @@ export function useCodeScanner() {
       tmpCtx.putImageData(imageData, 0, 0)
       
       try {
-        const result = reader.decodeFromCanvas(tmpCanvas)
+        const result = codeReader.decodeFromCanvas(tmpCanvas)
         if (result) {
           return {
             data: result.getText(),
@@ -87,7 +92,6 @@ export function useCodeScanner() {
           }
         }
       } catch (decodeErr) {
-        // No code found, this is normal during scanning
         return null
       }
     } catch (err) {
@@ -97,7 +101,9 @@ export function useCodeScanner() {
   }
 
   const scanFrame = () => {
-    if (!isScanning.value || !videoRef.value || !canvasRef.value) return
+    if (!isScanning.value || !videoRef.value || !canvasRef.value) {
+      return
+    }
 
     const video = videoRef.value
     const canvas = canvasRef.value
@@ -113,7 +119,7 @@ export function useCodeScanner() {
 
       if (code && onCodeDetected.value) {
         onCodeDetected.value(code.data, code.format)
-        // Pause briefly after detection
+        // Pause before next scan
         setTimeout(() => {
           if (isScanning.value) {
             animationId = requestAnimationFrame(scanFrame)
@@ -211,8 +217,8 @@ export function useCodeScanner() {
     try {
       await loadZxing()
       return new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
+        const fileReader = new FileReader()
+        fileReader.onload = (e) => {
           const img = new Image()
           img.onload = () => {
             const canvas = document.createElement('canvas')
@@ -227,7 +233,7 @@ export function useCodeScanner() {
           }
           img.src = e.target.result
         }
-        reader.readAsDataURL(imageFile)
+        fileReader.readAsDataURL(imageFile)
       })
     } catch (err) {
       console.error('Error scanning image:', err)

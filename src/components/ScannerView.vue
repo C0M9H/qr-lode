@@ -200,19 +200,7 @@ const scanHints = [
 const hintIndex = ref(0)
 const scanHint = computed(() => scanHints[hintIndex.value])
 
-const startScanner = async () => {
-  await initScanner()
-  if (isScanning.value) {
-    // Set up callback for detected codes
-    onCodeDetected.value = onCodeDetected_handler
-    // Rotate hints
-    setInterval(() => {
-      hintIndex.value = (hintIndex.value + 1) % scanHints.length
-    }, 3000)
-  }
-}
-
-const onCodeDetected_handler = (data, format = 'QR_CODE') => {
+const handleCodeDetected = (data, format = 'QR_CODE') => {
   // Haptic feedback
   if (navigator.vibrate) navigator.vibrate([50, 30, 50])
 
@@ -224,6 +212,19 @@ const onCodeDetected_handler = (data, format = 'QR_CODE') => {
   if (entry) {
     lastResult.value = entry
     scanCount.value++
+  }
+}
+
+const startScanner = async () => {
+  // Set up callback BEFORE starting scanner
+  onCodeDetected.value = handleCodeDetected
+  
+  await initScanner()
+  if (isScanning.value) {
+    // Rotate hints
+    setInterval(() => {
+      hintIndex.value = (hintIndex.value + 1) % scanHints.length
+    }, 3000)
   }
 }
 
@@ -269,7 +270,7 @@ const onFileSelected = async (e) => {
   try {
     const result = await scanImage(file)
     if (result) {
-      onCodeDetected(result.data, result.format)
+      handleCodeDetected(result.data, result.format)
     } else {
       alert('Nu s-a găsit niciun cod în imagine.')
     }
@@ -322,7 +323,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (scanInterval) clearTimeout(scanInterval)
   stopScanner()
 })
 </script>
