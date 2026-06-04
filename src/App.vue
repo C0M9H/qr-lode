@@ -12,7 +12,7 @@
           <rect x="3" y="16" width="3" height="3" fill="var(--accent)"/>
           <path d="M14 14h2v2h-2zM16 16h2v2h-2zM18 14h2v2h-2zM16 18h2v2h-2zM14 18h2v2h-2z" fill="var(--accent)"/>
         </svg>
-        <span class="header-title">QR<span class="accent">Scan Cfork</span></span>
+        <span class="header-title">QR<span class="accent">Scan Ck</span></span>
       </div>
       <div class="header-status">
         <span v-if="isOnline" class="status-dot online"></span>
